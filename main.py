@@ -1,11 +1,13 @@
 #setup a standard image size; this will distort some images but will get everything into the same shape
-import Image
+from PIL import Image
 from sklearn.decomposition import RandomizedPCA
 import pandas as pd
 import matplotlib.pyplot as pl
 from sklearn.neighbors import KNeighborsClassifier
 
+COLORS = ['b','g','r','c','m','y']
 STANDARD_SIZE = (300, 167)
+DATA_COUNT = 500 #limiting the number of data
 
 
 def img_to_matrix(filename, verbose=True):
@@ -31,67 +33,97 @@ def flatten_image(img):
     img_wide = img.reshape(1, s)
     return img_wide[0]
 
+def ImgClass():
+    def _init_(self,id,name,path):
+        self.id = id
+        self.name = name
+        self.path = path
+        self.images = [Image(id,os.path.join(self.path,name)) for name in os.listdir(self.path)]
+
+def Img():
+    def _init_(self,cl_id,path):
+        self.cl_id = cl_id
+        self.path = path
+        self.data = None
+
+    def load(self):
+        try:
+            data = img_to_matrix(self.path)
+            self.data = flatten_image(data)
+        except:
+            self.data = None
 
 import numpy as np
 import os
 
-img_dirs = ["image/pear/", "image/apple/"]
+# MAX. 6 CLASSES SUPPORTED (ONLY DUE TO COLORS ON THE PLOT)
+classes = {i: ImageClass(i,name,os.path.join("image",name)) for (i, name) in enumerate(os.listdir("image"))} #class informations
+
+print "=========\nAll data:"
+for cl_id,cl in classes.items():
+    print "\nclass name: ",cl.name
+    print "class id: ", cl.id
+    print "no. of images: ", len(cl.images)
+print "\ntotal no. of classes: ",len(classes)
+
 images = []
-for img_dir in img_dirs:
-    images += [img_dir + f for f in os.listdir(img_dir)]
+for cl_id,cl in classes.items():
+    images = images + cl.images
+
 import random
 random.shuffle(images)
-labels = ["pear" if "pear" in f.split('/')[-2] else "apple" for f in images]
-print len(filter(lambda x: x == "pear", labels))
-print len(filter(lambda x: x == "apple", labels))
+
+#optional limiting the number of data
+#images = images[:DATA_COUNT]
 
 data = []
-new_labels = []
-i = 0
-for image, label in zip(images, labels):
-    i = i + 1
-    try:
-        img = img_to_matrix(image)
-    except TypeError:
-        continue
-    except IOError:
-        continue
-    img = flatten_image(img)
-    data.append(img)
-    new_labels.append(label)
+labels = []
 
-
+for img in images:
+    img.load()
+    if (img.data):
+        data.append(img.data)
+        labels.append(img.cl_id)
 
 data = np.array(data)
 
-print new_labels
-print len(new_labels)
+print "===========\nLoaded data:"
+cl_no = 0
+for cl_id,cl in classes.items():
+    print "\nclass name: ",cl.name
+    print "class id: ", cl.id
+    l = len(filter(lambda img: img.data,cl.images))
+    print "no. of loaded images: ", l
+    if (l>0): cl_no+=1
+print "\nno. of loaded classes: ",cl_no
 
+# ONLY FOR VISUALIZATION
 pca = RandomizedPCA(n_components=2)
 X = pca.fit_transform(data)
-print len(X[:, 0])
-print len(X[:, 1])
 df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "label": new_labels})
-colors = ["red", "yellow"]
+try:
+    colors = COLORS[:cl_no]
+except IndexError:
+    print "Error: too many classes to plot. Make sure there are not more than 6 subdirectories in the 'image/' directory"
 for label, color in zip(df['label'].unique(), colors):
     mask = df['label'] == label
     pl.scatter(df[mask]['x'], df[mask]['y'], c=color, label=label)
 pl.legend()
 pl.show()
 
+# REAL TESTING
 pca = RandomizedPCA(n_components=5)
 test_size = 90
 train_x = pca.fit_transform(data[:test_size])
-mapped_labels = map(lambda x: 0 if x == "parrot" else 1, new_labels)
 test_x = pca.transform(data[test_size:])
 
 print train_x[:5]
 
 knn = KNeighborsClassifier()
-knn.fit(train_x, mapped_labels[:test_size])
+knn.fit(train_x, labels[:test_size])
 
 predicted = knn.predict(test_x)
-test_y = mapped_labels[test_size:]
+test_y = labels[test_size:]
 print predicted
 print test_y
 pd.crosstab(test_y, predicted, rownames=["Actual"], colnames=["Predicted"])
