@@ -49,7 +49,7 @@ def go(query, path):
       start += 4 # 4 images per page.
 
       # Be nice to Google and they'll be nice back :)
-      time.sleep(0.5)
+      time.sleep(0.3)
     except:
       continue
 
