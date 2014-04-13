@@ -15,40 +15,45 @@ def go(query, path):
   BASE_URL = 'https://ajax.googleapis.com/ajax/services/search/images?'\
              'v=1.0&q=' + query + '&start=%d'
 
-  BASE_PATH = os.path.join(path, query)
+  BASE_PATH = os.path.join(path, query.split()[0])
 
   if not os.path.exists(BASE_PATH):
     os.makedirs(BASE_PATH)
 
   start = 0 # Google's start query string parameter for pagination.
   while start < 60: # Google will only return a max of 56 results.
-    r = requests.get(BASE_URL % start)
-    for image_info in json.loads(r.text)['responseData']['results']:
-      url = image_info['unescapedUrl']
-      try:
-        image_r = requests.get(url)
-      except ConnectionError, e:
-        print 'could not download %s' % url
-        continue
+    try:
+      r = requests.get(BASE_URL % start)
+      for image_info in json.loads(r.text)['responseData']['results']:
+        url = image_info['unescapedUrl']
+        try:
+          image_r = requests.get(url)
+        except ConnectionError, e:
+          print 'could not download %s' % url
+          continue
 
-      # Remove file-system path characters from name.
-      title = image_info['titleNoFormatting'].replace('/', '').replace('\\', '')
+        # Remove file-system path characters from name.
+        title = image_info['titleNoFormatting'].replace('/', '').replace('\\', '')
 
-      file = open(os.path.join(BASE_PATH, '%s.jpg') % title, 'w')
-      try:
-        Image.open(StringIO(image_r.content)).save(file, 'JPEG')
-      except IOError, e:
-        # Throw away some gifs...blegh.
-        print 'could not save %s' % url
-        continue
-      finally:
-        file.close()
+        file = open(os.path.join(BASE_PATH, '%s.jpg') % title, 'w')
+        try:
+          Image.open(StringIO(image_r.content)).save(file, 'JPEG')
+        except IOError, e:
+          # Throw away some gifs...blegh.
+          print 'could not save %s' % url
+          continue
+        finally:
+          file.close()
 
-    print start
-    start += 4 # 4 images per page.
+      print start
+      start += 4 # 4 images per page.
 
-    # Be nice to Google and they'll be nice back :)
-    time.sleep(0.5)
+      # Be nice to Google and they'll be nice back :)
+      time.sleep(0.3)
+    except:
+      continue
 
 # Example use
 go('pear', 'image')
+go('apple fruit','image')
+go('banana','image')
