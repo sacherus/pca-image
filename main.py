@@ -9,7 +9,7 @@ import numpy as np
 import os
 
 COLORS = ['y','m','g','c','b','r']
-STANDARD_SIZE = (300, 167)
+STANDARD_SIZE = (350, 190)
 DATA_COUNT = 500 #limiting the number of data
 
 class KNNClassifier:
@@ -25,6 +25,7 @@ class KNNClassifier:
         return np.sum([x == y for (x,y) in zip(predicted, labels)]) / float(len(data))
 
     def train(self, data, labels, n_components=5, weights='distance', n_neighbors=5):
+        #print n_components
         self.pca = RandomizedPCA(n_components=n_components)
         fitted = self.pca.fit_transform(data)
         self.knn = KNeighborsClassifier(weights=weights, n_neighbors=n_neighbors)
@@ -95,7 +96,7 @@ class Img:
         try:
             data = img_to_matrix(self.path,verbose=False)
             self.data = flatten_image(data)
-            if(len(self.data)!=150300): raise Error
+            if(len(self.data)!= STANDARD_SIZE[0]*STANDARD_SIZE[1]*3): raise Error
         except:
             self.data = None
 
@@ -184,7 +185,7 @@ def chunk(l, n):
 def flatten_list(l):
     return [item for sublist in l for item in sublist]
 
-def cross_validation(input, target, folds=4, **kwargs):
+def cross_validation(input, target, folds=5, **kwargs):
     """
         kwargs are parameters for the model
     """
@@ -197,17 +198,16 @@ def cross_validation(input, target, folds=4, **kwargs):
         test_zipped = zip(*zipped[i])
         train_zipped = zip(*flatten_list(zipped[:i] + zipped[(i+1):]))
         model = KNNClassifier()
-        model.train(train_zipped[0], train_zipped[1])
+        model.train(train_zipped[0], train_zipped[1], **kwargs)
         accuracy_sum += model.accuracy(test_zipped[0], test_zipped[1])
 
     return accuracy_sum / float(folds)
 
 
 def grid_search():
-    grid_parameters = {"n_components": [2,6,10], "weights":['distance', 'uniform'], "n_neighbors":[1, 3, 5, 10]}
-
+    #grid_parameters = {"n_components": [2,5,6,10], "weights":['distance', 'uniform'], "n_neighbors":[1, 3, 5, 10]}
+    grid_parameters = {"n_components": [5], "weights":['distance', 'uniform'], "n_neighbors":[6]}
     data, labels, mapping = load_data()
-    print cross_validation(data, labels)
 
     divisions = []
     operations = 1
@@ -219,28 +219,41 @@ def grid_search():
         divisions.append(size * operations)
         operations *= size
 
+    print "Parameters are: ", parameter_keys
     print "Iterations: ", operations, " to check"
+
+    best_params = None
+    best_accuracy = 0
 
     for i in range(operations):
         indices = [i % divisions[0]]
-        indices += [i / division % division for division in divisions[:-1]]
-        i += 1
+        indices += [i / division % size for (division, size) in zip(divisions[:-1], parameter_sizes[1:])]
         grid_iteration_parameters = [pv[index] for (pv, index) in zip(parameter_values, indices)]
         grid_iteration_parameters = dict(zip(parameter_keys, grid_iteration_parameters))
         result = cross_validation(data, labels, **grid_iteration_parameters)
-        print "Accuracy: ", result
+        print ",".join(str(e) for e in grid_iteration_parameters.values()) + "," + str(result)
+        if result > best_accuracy:
+            best_params = grid_iteration_parameters
+            best_accuracy = result
 
+        #print "Accuracy: ", result
+
+
+    print "Best parameters: ", best_params, " with accuracy: ", best_accuracy
 
     model = KNNClassifier(mapping)
-    model.train(data, labels)
+    model.train(data, labels, **grid_iteration_parameters)
     model.save()
     model.load()
 
+    return model
+
 if __name__ == "__main__":
     #data, labels, mapping = load_data()
-    #model = KNNClassifier(mapping)
+    model = KNNClassifier()
     #print cross_validation(data, labels)
     #model.train(data, labels)
     #model.save()
     #model.load()
     grid_search()
+    #model.load()
