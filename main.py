@@ -7,9 +7,10 @@ import cPickle as pickle
 from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 import os
+cl_no = 0
 
 COLORS = ['y','m','g','c','b','r']
-STANDARD_SIZE = (350, 190)
+STANDARD_SIZE = (400, 200)
 DATA_COUNT = 500 #limiting the number of data
 
 class KNNClassifier:
@@ -31,7 +32,7 @@ class KNNClassifier:
         self.knn = KNeighborsClassifier(weights=weights, n_neighbors=n_neighbors)
         self.knn.fit(fitted, labels)
 
-    def visualize(self, data, labels):
+    def visualize(self, data, labels, cl_no):
         pca = RandomizedPCA(n_components=2)
         X = pca.fit_transform(data)
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "label": labels})
@@ -53,6 +54,9 @@ class KNNClassifier:
         self.knn = tmp_dict["knn"]
         self.pca = tmp_dict["pca"]
         self.mapping = tmp_dict["mapping"]
+
+    def predict_labels(self):
+        pass
 
 def img_to_matrix(filename, verbose=True):
     """
@@ -131,7 +135,7 @@ class Img:
 
 def load_data(directory="image"):
     # MAX. 6 CLASSES SUPPORTED (ONLY DUE TO COLORS ON THE PLOT)
-    classes = {i: ImgClass(i,name,os.path.join("image",name)) for (i, name) in enumerate(os.listdir("image"))} #class informations
+    classes = {i: ImgClass(i,name,os.path.join(directory,name)) for (i, name) in enumerate(os.listdir(directory))} #class informations
 
     mapping = {}
     print "=========\nAll data:"
@@ -173,7 +177,7 @@ def load_data(directory="image"):
         if (l>0): cl_no+=1
     print "\nno. of loaded classes: ",cl_no
 
-    return data, labels, mapping
+    return data, labels, mapping, cl_no
 
 def chunk(l, n):
     list = []
@@ -205,9 +209,9 @@ def cross_validation(input, target, folds=5, **kwargs):
 
 
 def grid_search():
-    #grid_parameters = {"n_components": [2,5,6,10], "weights":['distance', 'uniform'], "n_neighbors":[1, 3, 5, 10]}
-    grid_parameters = {"n_components": [5], "weights":['distance', 'uniform'], "n_neighbors":[6]}
-    data, labels, mapping = load_data()
+    grid_parameters = {"n_components": [2,5,6,10], "weights":['distance', 'uniform'], "n_neighbors":[1, 3, 5, 10]}
+    #grid_parameters = {"n_components": [5], "weights":['distance', 'uniform'], "n_neighbors":[6]}
+    data, labels, mapping, classes = load_data()
 
     divisions = []
     operations = 1
@@ -249,11 +253,22 @@ def grid_search():
     return model
 
 if __name__ == "__main__":
-    #data, labels, mapping = load_data()
-    model = KNNClassifier()
-    #print cross_validation(data, labels)
-    #model.train(data, labels)
-    #model.save()
-    #model.load()
-    grid_search()
-    #model.load()
+
+
+    if len(sys.argv) > 1:
+        data, labels, mapping, classes = load_data("image")
+        model = KNNClassifier()
+        model.load()
+        #model.predict_()
+    else:
+        data, labels, mapping, classes = load_data("image_old")
+        model = KNNClassifier()
+        #print cross_validation(data, labels)
+        #model.train(data, labels)
+        #model.save()
+        model.load()
+        print labels
+        model.visualize(data, labels, classes)
+        #grid_search()
+        #model.load()
+        import sys
