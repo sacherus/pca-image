@@ -25,7 +25,7 @@ class KNNClassifier:
         predicted = self.predict(data)
         return np.sum([x == y for (x,y) in zip(predicted, labels)]) / float(len(data))
 
-    def train(self, data, labels, n_components=5, weights='distance', n_neighbors=5):
+    def train(self, data, labels, n_components=5, weights='distance', n_neighbors=3):
         #print n_components
         self.pca = RandomizedPCA(n_components=n_components)
         fitted = self.pca.fit_transform(data)
@@ -55,8 +55,9 @@ class KNNClassifier:
         self.pca = tmp_dict["pca"]
         self.mapping = tmp_dict["mapping"]
 
-    def predict_labels(self):
-        pass
+    def predict_labels(self, data):
+        predicted = self.predict(data)
+        return [self.mapping[prediction] for prediction in predicted]
 
 def img_to_matrix(filename, verbose=True):
     """
@@ -143,7 +144,7 @@ def load_data(directory="image"):
         print "\nclass name: ",cl.name
         print "class id: ", cl.id
         print "no. of images: ", len(cl.images)
-        mapping[id] = cl.name
+        mapping[cl.id] = cl.name
     print "\ntotal no. of classes: ",len(classes)
 
     images = []
@@ -252,23 +253,48 @@ def grid_search():
 
     return model
 
+
+import sys
+
+def train_and_save():
+    data, labels, mapping, classes = load_data("image")
+    print mapping
+    model = KNNClassifier(mapping)
+    model.train(data, labels)
+    model.save()
+    model.load()
+    print cross_validation(data, labels)
+    #model.predict_labels(data)
+
 if __name__ == "__main__":
+    #train_and_save()
+    #data, labels, mapping, classes = load_data("image")
+    #print mapping
+    #model = KNNClassifier()
+    #model.visualize(data, labels, classes)
 
+    model = KNNClassifier()
+    model.load()
+    data, labels, mapping, classes = load_data("fast")
+    print model.predict_labels(data)
 
+    """
     if len(sys.argv) > 1:
-        data, labels, mapping, classes = load_data("image")
+        data, labels, mapping, classes = load_data("fast")
         model = KNNClassifier()
         model.load()
-        #model.predict_()
+
     else:
-        data, labels, mapping, classes = load_data("image_old")
+        data, labels, mapping, classes = load_data("fast")
+        print mapping
         model = KNNClassifier()
-        #print cross_validation(data, labels)
+        cross_validation(data, labels)
         #model.train(data, labels)
         #model.save()
         model.load()
         print labels
-        model.visualize(data, labels, classes)
+        #model.visualize(data, labels, classes)
         #grid_search()
         #model.load()
         import sys
+    """
